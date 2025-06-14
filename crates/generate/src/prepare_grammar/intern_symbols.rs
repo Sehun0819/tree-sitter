@@ -106,7 +106,7 @@ pub(super) fn intern_symbols(grammar: &InputGrammar) -> InternSymbolsResult<Inte
 
     for (i, variable) in variables.iter_mut().enumerate() {
         if supertype_symbols.contains(&Symbol::non_terminal(i)) {
-            variable.kind = VariableType::Hidden;
+            // variable.kind = VariableType::Hidden;
         }
     }
 
@@ -195,7 +195,8 @@ impl Interner<'_> {
 
 fn variable_type_for_name(name: &str) -> VariableType {
     if name.starts_with('_') {
-        VariableType::Hidden
+        // VariableType::Hidden
+        VariableType::Named
     } else {
         VariableType::Named
     }
