@@ -340,9 +340,48 @@ pub fn load_grammar_file(
         Err(LoadGrammarError::InvalidPath)?;
     }
     match grammar_path.extension().and_then(|e| e.to_str()) {
-        Some("js") => Ok(load_js_grammar_file(grammar_path, js_runtime)?),
-        Some("json") => Ok(fs::read_to_string(grammar_path)?),
+        Some("js") => {
+            let grammar_json = load_js_grammar_file(grammar_path, js_runtime)?;
+            strip_aliases_from_grammar_json(&grammar_json)
+        }
+        Some("json") => {
+            let grammar_json = fs::read_to_string(grammar_path)?;
+            strip_aliases_from_grammar_json(&grammar_json)
+        }
         _ => Err(LoadGrammarError::FileExtension(grammar_path.to_owned()))?,
+    }
+}
+
+fn strip_aliases_from_grammar_json(grammar_json: &str) -> LoadGrammarFileResult<String> {
+    let grammar_json = JSON_COMMENT_REGEX.replace_all(grammar_json, "\n");
+    let value: serde_json::Value = serde_json::from_str(&grammar_json)
+        .map_err(|e| LoadGrammarError::IO(format!("Failed to parse grammar JSON -- {e}")))?;
+    let stripped = strip_aliases_from_value(value);
+    serde_json::to_string_pretty(&stripped)
+        .map_err(|e| LoadGrammarError::IO(format!("Failed to serialize grammar JSON -- {e}")))
+}
+
+fn strip_aliases_from_value(value: serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Array(values) => serde_json::Value::Array(
+            values
+                .into_iter()
+                .map(strip_aliases_from_value)
+                .collect(),
+        ),
+        serde_json::Value::Object(mut map) => {
+            if matches!(map.get("type"), Some(serde_json::Value::String(t)) if t == "ALIAS") {
+                if let Some(content) = map.remove("content") {
+                    return strip_aliases_from_value(content);
+                }
+            }
+            for value in map.values_mut() {
+                let inner = std::mem::take(value);
+                *value = strip_aliases_from_value(inner);
+            }
+            serde_json::Value::Object(map)
+        }
+        _ => value,
     }
 }
 
