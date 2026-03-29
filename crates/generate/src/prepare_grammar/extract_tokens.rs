@@ -329,7 +329,7 @@ impl TokenExtractor {
                     "{}_token{}",
                     self.current_variable_name, self.current_variable_token_count
                 ),
-                kind: VariableType::Auxiliary,
+                kind: VariableType::Anonymous,
                 rule: rule.clone(),
             }
         };
